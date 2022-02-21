@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-String jstr = '''
+String gJsonStr = '''
 {
   "name": "Ravi Tamada",
   "email": "ravi8x@gmail.com",
@@ -64,7 +64,7 @@ test2() {
   String jsonString = jsonEncode(user);
 
   //json转class
-  Map<String, dynamic> userMap = jsonDecode(jsonString);
+  Map<String, dynamic> userMap = jsonDecode(gJsonStr);
   var userFromJson = User.fromJson(userMap);
 
   //打印calss
