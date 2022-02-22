@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'dart:io';
+
 String gJsonStr = '''
 {
   "name": "Ravi Tamada",
@@ -57,6 +59,40 @@ class Phone {
   Map<String, dynamic> toJson() => {'home': home, 'mobile': mobile};
 }
 
+class ConfigServer {
+  String type = 'ftp'; //FTP或其他，前期只写FTP
+  late String name;
+  late String ip;
+  int port = 21;
+  late String loginName;
+  late String loginPassword;
+
+  ConfigServer(
+      {required this.type,
+      required this.name,
+      required this.ip,
+      required this.port,
+      required this.loginName,
+      required this.loginPassword});
+
+  ConfigServer.fromJson(Map<String, dynamic> json)
+      : type = json['type'],
+        name = json['name'],
+        ip = json['ip'],
+        port = json['port'],
+        loginName = json['loginName'],
+        loginPassword = json['loginPassword'];
+
+  Map<String, dynamic> toJson() => {
+        'type': type,
+        'name': name,
+        'ip': ip,
+        'port': port,
+        'loginName': loginName,
+        'loginPassword': loginPassword,
+      };
+}
+
 test2() {
   //class转json
   var phone = Phone("010", "139");
@@ -64,12 +100,30 @@ test2() {
   String jsonString = jsonEncode(user);
 
   //json转class
-  Map<String, dynamic> userMap = jsonDecode(gJsonStr);
-  var userFromJson = User.fromJson(userMap);
+  Map<String, dynamic> jsonDynamic = jsonDecode(gJsonStr);
+  var userFromJson = User.fromJson(jsonDynamic);
 
   //打印calss
   print(userFromJson.name);
   print(userFromJson.email);
   print(userFromJson.phone.home);
   print(userFromJson.phone.mobile);
+
+  //以上是别人的代码总结
+
+  //下面测试自己的
+  var aServer = ConfigServer(
+      type: 'ftp',
+      name: 'test',
+      ip: '192.168.0.139',
+      port: 21,
+      loginName: 'admin',
+      loginPassword: 'password');
+
+  var serverJsonString = jsonEncode(aServer);
+  print(serverJsonString);
+
+  Map<String, dynamic> serverJsonDecoded = jsonDecode(serverJsonString);
+  var bServer = ConfigServer.fromJson(serverJsonDecoded);
+  print(bServer);
 }
