@@ -220,9 +220,14 @@ class FileManager extends StatefulWidget {
 
   static Future<List<FileSystemEntity>> getEntitysList(String path) async {
     if (path == '') return [];
-    final List<FileSystemEntity> list = await Directory(path).list().toList();
+    try {
+      final List<FileSystemEntity> list = await Directory(path).list().toList();
+      return list;
+    } catch (e) {
+      debugPrint(e.toString());
+      return [];
+    }
     //print(list);
-    return list;
   }
 
   static String basename(dynamic entity, [bool showFileExtension = true]) {
@@ -388,8 +393,7 @@ class _PageDirsState extends State<PageDirs> {
                         FScrollController.animateTo(
                             FScrollController.position.maxScrollExtent,
                             duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOut);
-                        //FScrollController.jumpTo(200);
+                            curve: Curves.ease);
                       }
                     }
                   },
@@ -421,14 +425,7 @@ class _PageDirsState extends State<PageDirs> {
                 }),
           ]),
         ),
-        body: Container(
-            child:
-                FileManager(FController: FController, FBuilder: buildEntityView)
-            // ValueListenableBuilder<String>(
-            //   valueListenable: FController.FPathNotify,
-            //   builder: buildFloderNavigator,
-            // ),
-            ),
+        body: FileManager(FController: FController, FBuilder: buildEntityView),
       ),
       onWillPop: () async {
         FController.FPathNotify.value =
@@ -438,49 +435,27 @@ class _PageDirsState extends State<PageDirs> {
     );
   }
 
+  // TextSpan(
+  //   text: splitedPath[i],
+  //   style: TextStyle(fontSize: 20, backgroundColor: Colors.blue[50]),
+  //   semanticsLabel: splitedPath[i],
+  //   recognizer: TapGestureRecognizer()
+  //     ..onTap = () {
+  //       debugPrint(splitedPath[i]);
+  //     },
+  // ),
   Widget buildFloderNavigator(context, snapPath, _) {
     List<String> splitedPath = snapPath.split("/");
-    List<InlineSpan> spanList = [];
-    List<String> textList = [];
     List<String> realPathList = [];
     for (var i = 0; i < splitedPath.length; i++) {
-      spanList.add(
-        TextSpan(
-          text: splitedPath[i],
-          style: TextStyle(fontSize: 20, backgroundColor: Colors.blue[50]),
-          semanticsLabel: splitedPath[i],
-          recognizer: TapGestureRecognizer()
-            ..onTap = () {
-              debugPrint(splitedPath[i]);
-            },
-        ),
-      );
-      if (spanList.length > 1) {
-        spanList.add(
-          const TextSpan(
-            text: '>',
-            style: TextStyle(
-              fontSize: 16,
-            ),
-          ),
-        );
-      }
-      //------------
-      textList.add(splitedPath[i]);
-      if (textList.length > 1) {
-        textList.add('/');
-      }
-
       var realpath = splitedPath
-          .sublist(
-              0,
-              splitedPath.indexWhere((element) => element == splitedPath[i]) +
-                  1)
+          .sublist(0, splitedPath.indexWhere((k) => k == splitedPath[i]) + 1)
           .join("/");
       realPathList.add(realpath);
       //debugPrint(splitedPath[i] + ' $i = $realpath');
     }
     //print(textList);
+
     var result = SizedBox(
       height: 30,
       child: ListView.builder(
@@ -490,18 +465,32 @@ class _PageDirsState extends State<PageDirs> {
         itemCount: splitedPath.length,
         itemBuilder: (BuildContext context, int index) {
           if (splitedPath[index] != '') {
-            return GestureDetector(
-                child: Card(
-                  child: Text(
-                    splitedPath[index] + '/',
-                    style: TextStyle(
-                        fontSize: 20, backgroundColor: Colors.blue[50]),
+            return Row(
+              children: [
+                GestureDetector(
+                  child: Card(
+                    margin: const EdgeInsets.all(0),
+                    // shape: const RoundedRectangleBorder(
+                    //   borderRadius: BorderRadius.all(Radius.circular(3.0)),
+                    // ),
+                    child: Text(
+                      splitedPath[index],
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                        //backgroundColor: Colors.blue[50],
+                      ),
+                    ),
                   ),
+                  onTap: () {
+                    debugPrint('click ' + realPathList[index]);
+                    FController.FPathNotify.value = realPathList[index];
+                  },
                 ),
-                onTap: () {
-                  debugPrint('click ' + realPathList[index]);
-                  FController.FPathNotify.value = realPathList[index];
-                });
+                const Text(' / ',
+                    style: TextStyle(fontWeight: FontWeight.normal)),
+              ],
+            );
           } else {
             return const Text('');
           }
@@ -509,12 +498,11 @@ class _PageDirsState extends State<PageDirs> {
       ),
     );
 
-    // FScrollController.jumpTo(FScrollController.position.maxScrollExtent);
+    //FScrollController.jumpTo(FScrollController.position.maxScrollExtent);
     if (FScrollController.hasClients) {
       FScrollController.animateTo(FScrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     }
-
     return result;
   }
 }
