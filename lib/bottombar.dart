@@ -34,17 +34,21 @@ class BottomBarState extends State<BottomBar> {
       //底部导航栏的创建需要对应的功能标签作为子项，这里我就写了3个，每个子项包含一个图标和一个title。
       items: [
         BottomNavigationBarItem(
-            label: AppLocalizations.of(context).getString("album"),
-            icon: const Icon(Icons.photo_album)),
+          label: ggText(context, "album"),
+          icon: const Icon(Icons.photo_album),
+        ),
         BottomNavigationBarItem(
-            label: AppLocalizations.of(context).getString("servers"),
-            icon: const Icon(Icons.laptop_mac)),
+          label: ggText(context, "servers"),
+          icon: const Icon(Icons.laptop_mac),
+        ),
         BottomNavigationBarItem(
-            label: AppLocalizations.of(context).getString("task"),
-            icon: const Icon(Icons.library_books)),
+          label: ggText(context, "task"),
+          icon: const Icon(Icons.library_books),
+        ),
         BottomNavigationBarItem(
-            label: AppLocalizations.of(context).getString("setting"),
-            icon: const Icon(Icons.settings)),
+          label: ggText(context, "setting"),
+          icon: const Icon(Icons.settings),
+        ),
       ],
     );
   }

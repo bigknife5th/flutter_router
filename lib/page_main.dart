@@ -10,10 +10,8 @@ import 'page_setting.dart';
 import 'page_task.dart';
 
 class _AppSetting {
-  _AppSetting();
-
   late Null Function(Locale locale) changeLocale;
-  Locale _locale = const Locale("en");
+  Locale _locale = const Locale("zh");
 }
 
 class MyApp extends StatefulWidget {
@@ -53,7 +51,7 @@ class MyAppState extends State<MyApp> {
           print("====locale find");
           return locale;
         }
-        return Locale("zh");
+        return const Locale("zh");
       },
       locale: setting._locale,
       localizationsDelegates: const [
@@ -71,9 +69,9 @@ class MyAppState extends State<MyApp> {
       //以上都不用管，新系统代码或复制来的固定代码
 
       //自己代码开始
-      home: Scaffold(
+      home: const Scaffold(
         body: PageAblum(),
-        bottomNavigationBar: const BottomBar(),
+        bottomNavigationBar: BottomBar(),
       ),
     );
   }

@@ -11,6 +11,10 @@ void main() {
   runApp(const MyApp());
 }
 
+bool equalsIgnoreCase(String string1, String string2) {
+  return string1.toLowerCase() == string2.toLowerCase();
+}
+
 Future<bool> checkPermission() async {
   // 检查是否已有读写内存的权限
   bool status = await Permission.storage.isGranted;
@@ -103,13 +107,13 @@ class FileManager extends StatefulWidget {
     //print(list);
   }
 
-  static String basename(dynamic entity, [bool showFileExtension = true]) {
+  static String basename(dynamic entity, [bool showFileExtension = false]) {
     if (entity is Directory) {
       return entity.path.split('/').last;
     } else if (entity is File) {
       return (showFileExtension)
-          ? entity.path.split('/').last.split('.').first
-          : entity.path.split('/').last;
+          ? entity.path.split('/').last
+          : entity.path.split('/').last.split('.').first;
     } else {
       print("Unknow file type");
       return "";
@@ -134,8 +138,7 @@ class _FileManagerState extends State<FileManager> {
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           widget.FController.FPathNotify.value = snapshot.data!.first.path;
-          //页面
-          return build_body(context);
+          return build_body(context); // <== 页面
         } else if (snapshot.hasError) {
           print(snapshot.error);
           return Text(snapshot.error.toString());
