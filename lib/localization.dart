@@ -10,16 +10,22 @@ const lzString = <String, Map<String, String>>{
     "album": "相册",
     "servers": "服务器",
     "task": "任务",
-    "setting": "设置"
+    "setting": "设置",
+    "action_add_folder": "添加目录",
   },
   "en": {
     "appTitle": "Smart Backup",
     "album": "Album",
     "servers": "Servers",
     "task": "Task",
-    "setting": "Setting"
+    "setting": "Setting",
+    "action_add_folder": "Add folder",
   }
 };
+
+String ggText(BuildContext context, String cast) {
+  return AppLocalizations.of(context).getString(cast);
+}
 
 class AppLocalizations {
   final Locale locale;

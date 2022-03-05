@@ -11,6 +11,15 @@ void main() {
   runApp(const MyApp());
 }
 
+void separators() {
+  print('Current path style: ${p.style}');
+  print('Current process path: ${p.current}');
+  print('Separators');
+  for (var entry in [p.posix, p.windows, p.url]) {
+    print('  ${entry.style.toString().padRight(7)}: ${entry.separator}');
+  }
+}
+
 Future<bool> checkPermission() async {
   // 检查是否已有读写内存的权限
   bool status = await Permission.storage.isGranted;
@@ -21,6 +30,13 @@ Future<bool> checkPermission() async {
   return false;
 }
 
+void testListDir() async {
+  List<Directory> storages = await FileManager.getStorageList();
+  List<FileSystemEntity> entity =
+      await FileManager.getEntitysList(storages.first.path);
+  print(entity.first);
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -29,6 +45,117 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(home: PageDirs());
   }
 }
+
+class Files {
+  int type; //0目录 1文件
+  String name;
+  int size;
+  int quanxian;
+
+  Files(this.type, this.name, this.size, this.quanxian);
+}
+
+class FileList extends StatefulWidget {
+  const FileList({Key? key}) : super(key: key);
+
+  @override
+  _FileListState createState() => _FileListState();
+}
+
+class _FileListState extends State<FileList> {
+  get itemBuilder => null;
+  ValueNotifier<String> FCurrentDir = ValueNotifier<String>('');
+  List<FileSystemEntity> FEntities = [];
+  // products
+  @override
+  void initState() {
+    super.initState();
+    checkPermission();
+    //testListDir();
+    //_requestExternalStorageDirectories(StorageDirectory.dcim);
+    Future<List<Directory>> storages = FileManager.getStorageList();
+    storages.then((storages) => setCurrentDir(storages.first.path));
+  }
+
+  void setCurrentDir(String path) {
+    FCurrentDir.value = path;
+  }
+
+  Widget _buildDirectories(BuildContext context, List<Directory> data) {
+    return ListView.builder(
+      itemBuilder: (context, index) {
+        return ListTile(
+          title: Text(data[index].path),
+        );
+      },
+      itemCount: data.length,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String>(
+        valueListenable: FCurrentDir,
+        builder: (BuildContext context, String pathSnap, Widget? child) {
+          return FutureBuilder<List<FileSystemEntity>>(
+              future: FileManager.getEntitysList(pathSnap), builder: fb);
+        });
+  }
+
+  Widget fb(context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.done) {
+      if (snapshot.hasData) {
+        return fileListView(snapshot.data!);
+      } else if (snapshot.hasError) {
+        return const Icon(Icons.error);
+      }
+    }
+    return const Center(
+      child: CircularProgressIndicator(),
+    );
+  }
+
+  Widget fileListView(List<FileSystemEntity> list) {
+    return ListView.builder(
+        itemCount: list.length,
+        itemBuilder: (BuildContext context, int index) {
+          FileSystemEntity entity = list[index];
+          return Card(
+            child: ListTile(
+              leading: (entity is File)
+                  ? const Icon(Icons.feed_outlined)
+                  : const Icon(Icons.folder),
+              title: Text(FileManager.basename(entity)),
+              onTap: () {
+                if (entity is Directory) {
+                  FCurrentDir.value = entity.path;
+                }
+              },
+            ),
+          );
+        });
+  }
+
+  Widget _emptyFolderWidger() {
+    return const Center(child: Text("Empty Directory"));
+  }
+
+  Widget _errorPage(String error) {
+    return Container(
+      color: Colors.red,
+      child: Center(
+        child: Text("Error: $error"),
+      ),
+    );
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 enum SortBy { name, type, date, size }
 

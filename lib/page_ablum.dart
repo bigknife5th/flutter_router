@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-
-import 'localization.dart';
+import 'package:flutter_router/localization.dart';
+//import 'file_manager.dart';
+import 'tool_filemanager.dart';
 
 class PageAblum extends StatefulWidget {
   const PageAblum({Key? key}) : super(key: key);
@@ -10,106 +12,171 @@ class PageAblum extends StatefulWidget {
 }
 
 class PageAblumState extends State<PageAblum> {
-  int _counter = 0;
+  FileManagerController fileManagerControll = FileManagerController();
+  List<Directory> ffDirectories = [];
+  List<FileSystemEntity> ffEntities = [];
+  ValueNotifier<List<FileSystemEntity>> ffAlbumFolders =
+      ValueNotifier<List<FileSystemEntity>>([]);
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  final ffRootPath = '';
+
+  @override
+  void initState() {
+    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-            title: Text(AppLocalizations.of(context).getString("album"))),
-        body: Center(
-          //child: Text(AppLocalizations.of(context).getString("album")),
-          child: Text(_counter.toString()),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () async {
+                await fileManagerControll.goToParentDirectory();
+              },
+            ),
+            const SizedBox(width: 10),
+            IconButton(
+              icon: const Icon(Icons.house),
+              onPressed: () async {
+                await fileManagerControll.goToHome();
+              },
+            ),
+            const SizedBox(width: 10),
+            Text(
+              ggText(context, "album"),
+            ),
+          ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _incrementCounter,
-          tooltip: 'Increment',
-          child: Icon(Icons.add),
-        )); // This trailing comma makes auto-formatting nicer for build methods.);
-  }
-}
-
-class Page2 extends StatefulWidget {
-  const Page2({Key? key}) : super(key: key);
-
-  @override
-  State<StatefulWidget> createState() => Page2State();
-}
-
-class Page2State extends State<Page2> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+      ),
+      body:
+          //FileManager(FController: fileManagerControll,FBuilder: buildEntityView,),
+          buildAlbumInFuture(context),
+      floatingActionButton: FloatingActionButton(
+        tooltip: ggText(context, 'action_add_folder'),
+        onPressed: () {
+          FileManager.getStorageList().then((value) {
+            ffAlbumFolders.value.clear();
+            refreshAlbumFolders();
+          });
+        },
+        elevation: 7.0,
+        child: const Icon(Icons.add),
+      ),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(title: Text("页面状态测试页2")),
-        body: Center(
-          //child: Text(AppLocalizations.of(context).getString("album")),
-          child: Text(_counter.toString()),
+  Widget buildAlbumInFuture(BuildContext context) {
+    return FutureBuilder<List<Directory>?>(
+      future: FileManager.getStorageList(),
+      builder: (BuildContext context, AsyncSnapshot snapStorage) {
+        if (snapStorage.connectionState == ConnectionState.done) {
+          if (snapStorage.hasData) {
+            return FutureBuilder<List<FileSystemEntity>?>(
+              future: FileManager.getEntitysList(snapStorage.data!.first.path),
+              builder: (BuildContext context, AsyncSnapshot snapEntities) {
+                if (snapEntities.hasData) {
+                  refreshAlbumFolders();
+                  return widgetToBuild(); // <<== 这里干活
+                } else if (snapEntities.hasError) {
+                  return const Icon(Icons.error_outline);
+                } else {
+                  return const CircularProgressIndicator();
+                }
+              },
+            );
+          } else if (snapStorage.hasError) {
+            return const Icon(Icons.error);
+          }
+        }
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+  }
+
+  ValueListenableBuilder<List<FileSystemEntity>> widgetToBuild() {
+    return ValueListenableBuilder<List<FileSystemEntity>>(
+      valueListenable: ffAlbumFolders,
+      builder: (context, snapFolders, _) {
+        if (ffAlbumFolders.value.isNotEmpty) {
+          return Center(
+            child: ListView.builder(
+              itemCount: snapFolders.length,
+              itemBuilder: (BuildContext context, int index) {
+                FileSystemEntity entity = snapFolders[index];
+                return Card(
+                  child: ListTile(
+                    title: Text(FileManager.basename(entity)),
+                  ),
+                );
+              },
+            ),
+          );
+        } else {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+      },
+    );
+  }
+
+  void refreshAlbumFolders() async {
+    ffAlbumFolders.value.clear();
+    if (ffDirectories.isEmpty) {
+      ffDirectories = await FileManager.getStorageList();
+    }
+
+    var entities = await FileManager.getEntitysList(ffDirectories.first.path);
+
+    for (var entity in entities) {
+      if (equalsIgnoreCase(FileManager.basename(entity), 'dcim') ||
+          equalsIgnoreCase(FileManager.basename(entity), 'picture') ||
+          equalsIgnoreCase(FileManager.basename(entity), 'pictures')) {
+        var folders = await FileManager.getEntitysList(entity.path);
+        for (var f in folders) {
+          ffAlbumFolders.value.add(f);
+        }
+      }
+    }
+    print(ffAlbumFolders.value);
+  }
+
+  //基础视图
+  Widget buildEntityView(
+      BuildContext context, List<FileSystemEntity> entities) {
+    List<FileSystemEntity> albumEntities = [];
+    for (var entity in entities) {
+      if (equalsIgnoreCase(FileManager.basename(entity), 'dcim') ||
+          equalsIgnoreCase(FileManager.basename(entity), 'picture') ||
+          equalsIgnoreCase(FileManager.basename(entity), 'pictures')) {
+        albumEntities.add(entity);
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        //Listview
+        Expanded(
+          child: ListView.builder(
+            itemCount: albumEntities.length,
+            itemBuilder: (BuildContext context, int index) {
+              FileSystemEntity entity = albumEntities[index];
+              String baseName = FileManager.basename(entity);
+              return Card(
+                child: ListTile(
+                  title: Text(FileManager.basename(entity)),
+                  onTap: () => fileManagerControll.openDirectory(entity),
+                ),
+              );
+            },
+          ),
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _incrementCounter,
-          tooltip: 'Increment',
-          child: Icon(Icons.add),
-        )); // This trailing comma makes auto-formatting nicer for build methods.);
-  }
-}
-
-class Page3 extends StatefulWidget {
-  const Page3({Key? key}) : super(key: key);
-
-  @override
-  State<StatefulWidget> createState() => Page2State();
-}
-
-class Page3State extends State<Page2> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(title: Text("页面状态测试页2")),
-        body: Center(
-          //child: Text(AppLocalizations.of(context).getString("album")),
-          child: Text(_counter.toString()),
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _incrementCounter,
-          tooltip: 'Increment',
-          child: Icon(Icons.add),
-        )); // This trailing comma makes auto-formatting nicer for build methods.);
+      ],
+    );
   }
 }

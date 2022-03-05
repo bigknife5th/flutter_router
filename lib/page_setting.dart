@@ -4,6 +4,8 @@ import 'localization.dart';
 import 'page_main.dart';
 
 class PageSetting extends StatefulWidget {
+  const PageSetting({Key? key}) : super(key: key);
+
   @override
   _PageSettingState createState() => _PageSettingState();
 }
@@ -19,15 +21,15 @@ class _PageSettingState extends State<PageSetting> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton(
-                child: Text('中文'),
+                child: const Text('中文'),
                 onPressed: () {
-                  MyAppState.setting.changeLocale(Locale('zh'));
+                  MyAppState.setting.changeLocale(const Locale('zh'));
                 },
               ),
               ElevatedButton(
-                child: Text('English'),
+                child: const Text('English'),
                 onPressed: () {
-                  MyAppState.setting.changeLocale(Locale('en'));
+                  MyAppState.setting.changeLocale(const Locale('en'));
                 },
               ),
             ],
