@@ -30,7 +30,9 @@ class PageAblumState extends State<PageAblum> {
   List<FileSystemEntity> ffEntities = [];
   ValueNotifier<List<FileSystemEntity>> ffAlbumFolders =
       ValueNotifier<List<FileSystemEntity>>([]);
-  ValueNotifier<bool> ffRefreshed = ValueNotifier<bool>(false);
+  ValueNotifier<bool> ffRefreshSignal = ValueNotifier<bool>(false);
+
+  List<BackupTask> ffTasks = [];
 
   final ffRootPath = '';
 
@@ -65,8 +67,8 @@ class PageAblumState extends State<PageAblum> {
       ),
       body:
           //FileManager(FController: fileManagerControll,FBuilder: buildEntityView,),
-          buildAlbumInFuture(context),
-      //widgetToBuild(context),
+          //buildAlbumInFuture(context),
+          buildOnRefresh(context),
       floatingActionButton: FloatingActionButton(
         tooltip: ('action_add_folder'),
         onPressed: () {
@@ -90,8 +92,7 @@ class PageAblumState extends State<PageAblum> {
               future: FileManager.getEntitysList(snapStorage.data!.first.path),
               builder: (BuildContext context, AsyncSnapshot snapEntities) {
                 if (snapEntities.hasData) {
-                  refreshAlbumFolders();
-                  return widgetToBuild(context); // <<== 这里干活
+                  return buildOnRefresh(context); // <<== 这里干活
                 } else if (snapEntities.hasError) {
                   return const Icon(Icons.error_outline);
                 } else {
@@ -110,18 +111,19 @@ class PageAblumState extends State<PageAblum> {
     );
   }
 
-  ValueListenableBuilder<bool> widgetToBuild(BuildContext context) {
+  ValueListenableBuilder<bool> buildOnRefresh(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: ffRefreshed,
+      valueListenable: ffRefreshSignal,
       builder: (context, snapFolders, _) {
-        if (ffAlbumFolders.value.isNotEmpty) {
+        if (ffTasks.isNotEmpty) {
           return Center(
             child: ListView.builder(
-              itemCount: ffAlbumFolders.value.length,
+              itemCount: ffTasks.length,
               itemBuilder: (BuildContext context, int index) {
                 return Card(
                   child: ListTile(
-                    title: Text(ffAlbumFolders.value[index].path),
+                    title: Text(ffTasks[index].parent),
+                    //subtitle: Text(ffTasks[index].files.first.path),
                   ),
                 );
               },
@@ -138,6 +140,8 @@ class PageAblumState extends State<PageAblum> {
 
   void refreshAlbumFolders() async {
     ffAlbumFolders.value.clear();
+    ffTasks.clear();
+
     if (ffDirectories.isEmpty) {
       ffDirectories = await FileManager.getStorageList();
     }
@@ -149,13 +153,17 @@ class PageAblumState extends State<PageAblum> {
           equalsIgnoreCase(FileManager.basename(entity), 'picture') ||
           equalsIgnoreCase(FileManager.basename(entity), 'pictures')) {
         var folders = await FileManager.getEntitysList(entity.path);
-        for (var f in folders) {
-          ffAlbumFolders.value.add(f);
+        for (var folder in folders) {
+          // print(folder.path.split('/').last.substring(0, 1));
+          if (folder is Directory && !FileManager.isHideFile(folder)) {
+            var filesLocal = await FileManager.getEntitysList(folder.path);
+            ffTasks.add(BackupTask(files: filesLocal, parent: folder.path));
+          }
         }
       }
     }
-    ffRefreshed.value = !ffRefreshed.value;
-    print(ffAlbumFolders.value);
+    ffRefreshSignal.value = !ffRefreshSignal.value;
+    //print(ffTasks);
   }
 
   //基础视图
@@ -191,4 +199,11 @@ class PageAblumState extends State<PageAblum> {
       ],
     );
   }
+}
+
+class BackupTask {
+  late String parent;
+  late List<FileSystemEntity> files;
+
+  BackupTask({required this.files, required this.parent});
 }

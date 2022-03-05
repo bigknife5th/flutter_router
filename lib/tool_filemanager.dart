@@ -119,6 +119,10 @@ class FileManager extends StatefulWidget {
       return "";
     }
   }
+
+  static bool isHideFile(dynamic entity) {
+    return (entity.path.split('/').last.substring(0, 1) == '.');
+  }
 }
 
 class _FileManagerState extends State<FileManager> {

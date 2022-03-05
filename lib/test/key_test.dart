@@ -35,15 +35,16 @@ class _MyAppState extends State<MyApp> {
           },
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            refreshAlbumFolders();
+          onPressed: () async {
+            await refreshAlbumFolders();
+            setState(() {});
           },
         ),
       ),
     );
   }
 
-  void refreshAlbumFolders() async {
+  Future<void> refreshAlbumFolders() async {
     if (ffEntities.isNotEmpty) {
       ffEntities.clear();
     }

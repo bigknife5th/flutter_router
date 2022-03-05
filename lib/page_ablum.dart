@@ -78,7 +78,6 @@ class PageAblumState extends State<PageAblum> {
               future: FileManager.getEntitysList(snapStorage.data!.first.path),
               builder: (BuildContext context, AsyncSnapshot snapEntities) {
                 if (snapEntities.hasData) {
-                  refreshAlbumFolders();
                   return widgetToBuild(); // <<== 这里干活
                 } else if (snapEntities.hasError) {
                   return const Icon(Icons.error_outline);
