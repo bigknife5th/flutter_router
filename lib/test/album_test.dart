@@ -120,12 +120,7 @@ class PageAblumState extends State<PageAblum> {
             child: ListView.builder(
               itemCount: ffTasks.length,
               itemBuilder: (BuildContext context, int index) {
-                return Card(
-                  child: ListTile(
-                    title: Text(ffTasks[index].parent),
-                    //subtitle: Text(ffTasks[index].files.first.path),
-                  ),
-                );
+                return buildCard(index);
               },
             ),
           );
@@ -135,6 +130,37 @@ class PageAblumState extends State<PageAblum> {
           );
         }
       },
+    );
+  }
+
+  Card buildCard(int index) {
+    var album = ffTasks[index];
+    var photos = ffTasks[index].files;
+    File file;
+    Image image = Image.asset('images/picture.png');
+
+    if (photos.isNotEmpty) {
+      var ext = photos.first.path.split('/').last.split('.').last;
+      print(ext);
+      if (ext == 'png') {
+        file = File(photos.first.path);
+        image = Image.file(file);
+      }
+    }
+
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(album.parent),
+          SizedBox(
+            child: image,
+            //Image.asset('images/picture.png'),
+            width: 100,
+          ),
+          //ListView.builder(itemCount: 4, itemBuilder: {})
+        ],
+      ),
     );
   }
 
