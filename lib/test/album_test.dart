@@ -1,8 +1,11 @@
+// 测试相册页
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_router/localization.dart';
 //import 'file_manager.dart';
 import '../tool_filemanager.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 main() {
   runApp(const MyApp());
@@ -25,19 +28,35 @@ class PageAblum extends StatefulWidget {
 }
 
 class PageAblumState extends State<PageAblum> {
+  //pub.dev的file_manager扩展用到的controller
   FileManagerController fileManagerControll = FileManagerController();
-  List<Directory> ffDirectories = [];
+
+  //全局的Storage列表
+  List<Directory> ffStorages = [];
+
+  //全局的文件列表
   List<FileSystemEntity> ffEntities = [];
+
+  //全局的相册列表
   ValueNotifier<List<FileSystemEntity>> ffAlbumFolders =
       ValueNotifier<List<FileSystemEntity>>([]);
-  ValueNotifier<bool> ffRefreshSignal = ValueNotifier<bool>(false);
 
+  //备份任务的列表
   List<BackupTask> ffTasks = [];
 
-  final ffRootPath = '';
+  //刷新UI的信号
+  ValueNotifier<bool> ffRefreshSignal = ValueNotifier<bool>(false);
+
+  //另一种信号方式
+  ValueNotifier<int> ffTaskCount = ValueNotifier<int>(0);
+
+  String ffRootPath = '';
 
   @override
   void initState() {
+    checkPermission();
+    //refreshAlbumFolders();
+    //getAlbumFolders();
     super.initState();
   }
 
@@ -45,35 +64,16 @@ class PageAblumState extends State<PageAblum> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () async {
-                await fileManagerControll.goToParentDirectory();
-              },
-            ),
-            const SizedBox(width: 10),
-            IconButton(
-              icon: const Icon(Icons.house),
-              onPressed: () async {
-                await fileManagerControll.goToHome();
-              },
-            ),
-            const SizedBox(width: 10),
-            const Text("album"),
-          ],
-        ),
+        title: const Text("照片库"),
       ),
-      body:
-          //FileManager(FController: fileManagerControll,FBuilder: buildEntityView,),
-          //buildAlbumInFuture(context),
+      body: //buildAlbumInFuture(context),
           buildOnRefresh(context),
       floatingActionButton: FloatingActionButton(
         tooltip: ('action_add_folder'),
         onPressed: () {
           FileManager.getStorageList().then((value) {
-            refreshAlbumFolders();
+            //refreshAlbumFolders();
+            getAlbumFolders();
           });
         },
         elevation: 7.0,
@@ -88,11 +88,12 @@ class PageAblumState extends State<PageAblum> {
       builder: (BuildContext context, AsyncSnapshot snapStorage) {
         if (snapStorage.connectionState == ConnectionState.done) {
           if (snapStorage.hasData) {
-            return FutureBuilder<List<FileSystemEntity>?>(
-              future: FileManager.getEntitysList(snapStorage.data!.first.path),
+            return FutureBuilder(
+              future: getAlbumFolders(),
               builder: (BuildContext context, AsyncSnapshot snapEntities) {
                 if (snapEntities.hasData) {
-                  return buildOnRefresh(context); // <<== 这里干活
+                  //创建主列表
+                  return buildOnRefresh(context);
                 } else if (snapEntities.hasError) {
                   return const Icon(Icons.error_outline);
                 } else {
@@ -116,14 +117,8 @@ class PageAblumState extends State<PageAblum> {
       valueListenable: ffRefreshSignal,
       builder: (context, snapFolders, _) {
         if (ffTasks.isNotEmpty) {
-          return Center(
-            child: ListView.builder(
-              itemCount: ffTasks.length,
-              itemBuilder: (BuildContext context, int index) {
-                return buildCard(index);
-              },
-            ),
-          );
+          //return Center(child: buildListView());
+          return buildGridView();
         } else {
           return const Center(
             child: CircularProgressIndicator(),
@@ -133,57 +128,170 @@ class PageAblumState extends State<PageAblum> {
     );
   }
 
-  Card buildCard(int index) {
+  ListView buildListView() {
+    return ListView.builder(
+      shrinkWrap: false,
+      itemCount: ffTasks.length,
+      itemBuilder: (BuildContext context, int index) {
+        //主要UI
+        return buildFileView(index);
+      },
+    );
+  }
+
+  GridView buildGridView() {
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 1, //每行三列
+        childAspectRatio: 3 / 1,
+        // mainAxisSpacing: 5,
+        // crossAxisSpacing: 5,
+        // childAspectRatio: 1.0, //显示区域宽高相等
+      ),
+      itemCount: ffTasks.length,
+      itemBuilder: (context, index) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: ffRefreshSignal,
+          builder: (context, snapshot, _) {
+            return buildFileView(index);
+          },
+        );
+      },
+    );
+  }
+
+  Widget buildFileView(int index) {
     var album = ffTasks[index];
-    var photos = ffTasks[index].files;
-    File file;
-    Image image = Image.asset('images/picture.png');
+    Image defaultImage = Image.asset(
+      'images/picture.png',
+      height: 64,
+      width: 64,
+    );
+    List<Widget> previewImages = [defaultImage];
+    Row resultRow = Row(
+      children: previewImages,
+    );
+    //默认返回一个横排Row，包含4个64x64的默认图片
 
-    if (photos.isNotEmpty) {
-      var ext = photos.first.path.split('/').last.split('.').last;
-      print(ext);
-      if (ext == 'png') {
-        file = File(photos.first.path);
-        image = Image.file(file);
-      }
-    }
+    FutureBuilder fb = FutureBuilder<List<FileSystemEntity>?>(
+      future: album.getEntity(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          //如果future返回了数据
+          var photos = snapshot.data!;
+          //如果数据非空
+          if (photos.isNotEmpty) {
+            //读取前4张图片展示
+            previewImages.clear();
+            for (var i = 0; i < 4; i++) {
+              if (i >= photos.length) break;
+              var ext = photos[i].path.split('/').last.split('.').last;
+              //print(ext);
+              if (ext == 'png' || ext == 'jpg' || ext == 'gif') {
+                previewImages.add(
+                  Image.file(
+                    File(photos[i].path),
+                    width: 64.0,
+                    height: 64.0,
+                  ),
+                );
+              }
+            }
+            //print("预览图长度：${previewImages.length}");
+            return Row(
+              children: previewImages,
+            );
+            return Image.asset('images/picture.png');
+          }
+        } else if (snapshot.hasError) {
+          return Row(children: const [Icon(Icons.error_outline)]);
+        } else {
+          return Row();
+        }
+        return Row();
+      },
+    );
 
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(album.parent),
-          SizedBox(
-            child: image,
-            //Image.asset('images/picture.png'),
-            width: 100,
-          ),
-          //ListView.builder(itemCount: 4, itemBuilder: {})
-        ],
+    return SizedBox(
+      height: 100,
+      child: Card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(album.parent),
+            fb,
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> getSubFolderPath(FileSystemEntity entity) async {
+    if (entity is Directory && !FileManager.isHideFile(entity)) {
+      print('subpath:' + entity.path);
+      ffTasks.add(BackupTask(parent: entity.path));
+      ffTaskCount.value = ffTasks.length;
+      var subFolders = await FileManager.getEntitysList(entity.path);
+      for (var sub in subFolders) {
+        await getSubFolderPath(sub);
+      }
+    }
+  }
+
+  Future<void> getAlbumFolders() async {
+    var storages = await FileManager.getStorageList();
+    if (storages.isEmpty) {
+      return;
+    }
+
+    ffRootPath = storages.first.path;
+
+    ffEntities = await FileManager.getEntitysList(storages.first.path);
+    if (ffEntities.isEmpty) {
+      return;
+    }
+
+    ffTasks.clear();
+
+    for (var entity in ffEntities) {
+      var baseName = FileManager.basename(entity);
+      if (equalsIgnoreCase(baseName, 'dcim') ||
+          equalsIgnoreCase(baseName, 'picture') ||
+          equalsIgnoreCase(baseName, 'pictures') ||
+          equalsIgnoreCase(baseName, 'video') ||
+          equalsIgnoreCase(baseName, 'videos') ||
+          equalsIgnoreCase(baseName, 'gallery')) {
+        await getSubFolderPath(entity);
+      }
+    }
+    print("返回了");
+    ffRefreshSignal.value = !ffRefreshSignal.value;
   }
 
   void refreshAlbumFolders() async {
     ffAlbumFolders.value.clear();
     ffTasks.clear();
 
-    if (ffDirectories.isEmpty) {
-      ffDirectories = await FileManager.getStorageList();
+    if (ffStorages.isEmpty) {
+      ffStorages = await FileManager.getStorageList();
     }
 
-    var entities = await FileManager.getEntitysList(ffDirectories.first.path);
+    var entities = await FileManager.getEntitysList(ffStorages.first.path);
 
     for (var entity in entities) {
-      if (equalsIgnoreCase(FileManager.basename(entity), 'dcim') ||
-          equalsIgnoreCase(FileManager.basename(entity), 'picture') ||
-          equalsIgnoreCase(FileManager.basename(entity), 'pictures')) {
+      var baseName = FileManager.basename(entity);
+      if (equalsIgnoreCase(baseName, 'dcim') ||
+          equalsIgnoreCase(baseName, 'picture') ||
+          equalsIgnoreCase(baseName, 'pictures') ||
+          equalsIgnoreCase(baseName, 'video') ||
+          equalsIgnoreCase(baseName, 'videos') ||
+          equalsIgnoreCase(baseName, 'gallery')) {
         var folders = await FileManager.getEntitysList(entity.path);
         for (var folder in folders) {
           // print(folder.path.split('/').last.substring(0, 1));
           if (folder is Directory && !FileManager.isHideFile(folder)) {
-            var filesLocal = await FileManager.getEntitysList(folder.path);
-            ffTasks.add(BackupTask(files: filesLocal, parent: folder.path));
+            //var filesLocal = await FileManager.getEntitysList(folder.path);
+            ffTasks.add(BackupTask(parent: folder.path));
           }
         }
       }
@@ -191,45 +299,17 @@ class PageAblumState extends State<PageAblum> {
     ffRefreshSignal.value = !ffRefreshSignal.value;
     //print(ffTasks);
   }
-
-  //基础视图
-  Widget buildEntityView(
-      BuildContext context, List<FileSystemEntity> entities) {
-    List<FileSystemEntity> albumEntities = [];
-    for (var entity in entities) {
-      if (equalsIgnoreCase(FileManager.basename(entity), 'dcim') ||
-          equalsIgnoreCase(FileManager.basename(entity), 'picture') ||
-          equalsIgnoreCase(FileManager.basename(entity), 'pictures')) {
-        albumEntities.add(entity);
-      }
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        //Listview
-        Expanded(
-          child: ListView.builder(
-            itemCount: albumEntities.length,
-            itemBuilder: (BuildContext context, int index) {
-              FileSystemEntity entity = albumEntities[index];
-              String baseName = FileManager.basename(entity);
-              return Card(
-                child: ListTile(
-                  title: Text(FileManager.basename(entity)),
-                  onTap: () => fileManagerControll.openDirectory(entity),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class BackupTask {
   late String parent;
-  late List<FileSystemEntity> files;
+  List<FileSystemEntity> files = [];
 
-  BackupTask({required this.files, required this.parent});
+  BackupTask({required this.parent});
+
+  Future<List<FileSystemEntity>> getEntity() async {
+    files.clear();
+    files = await FileManager.getEntitysList(parent);
+    return files;
+  }
 }
