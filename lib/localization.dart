@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 //Localization String 本地语言文件
 const lzString = <String, Map<String, String>>{
   "zh": {
-    "appTitle": "智能备份",
+    "app_title": "智能备份",
     "album": "相册",
     "servers": "服务器",
     "task": "任务",
@@ -14,7 +14,7 @@ const lzString = <String, Map<String, String>>{
     "action_add_folder": "添加目录",
   },
   "en": {
-    "appTitle": "Smart Backup",
+    "app_title": "Smart Backup",
     "album": "Album",
     "servers": "Servers",
     "task": "Task",
@@ -24,7 +24,8 @@ const lzString = <String, Map<String, String>>{
 };
 
 String ggText(BuildContext context, String cast) {
-  return AppLocalizations.of(context).getString(cast);
+  //var t = AppLocalizations.of(context);
+  return cast;
 }
 
 class AppLocalizations {
@@ -33,7 +34,7 @@ class AppLocalizations {
   AppLocalizations(this.locale);
 
   static AppLocalizations of(BuildContext context) {
-    return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
+    return Localizations.of(context, AppLocalizations)!;
   }
 
   String getString(String str) {

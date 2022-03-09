@@ -23,10 +23,19 @@ class MyApp extends StatefulWidget {
 
 class MyAppState extends State<MyApp> {
   static _AppSetting setting = _AppSetting();
+  late AppLocalizations ffLocal;
+  List<Widget> ffPageList = const [
+    PageAblum(),
+    PageServers(),
+    PageTask(),
+    PageSetting()
+  ];
+  int ffSelectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    //ffLocal = AppLocalizations.of(context);
     setting.changeLocale = (Locale locale) {
       setState(() {
         setting._locale = locale;
@@ -38,7 +47,7 @@ class MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       onGenerateTitle: (context) {
-        return AppLocalizations.of(context).getString("appTitle");
+        return AppLocalizations.of(context).getString("app_title");
       },
 
       // 以下都不用管，新系统代码或复制来的固定代码
@@ -69,10 +78,50 @@ class MyAppState extends State<MyApp> {
       //以上都不用管，新系统代码或复制来的固定代码
 
       //自己代码开始
-      home: const Scaffold(
-        body: PageAblum(),
-        bottomNavigationBar: BottomBar(),
+      home: Scaffold(
+        // appBar: AppBar(
+        //   title: Text(ggText(context, "app_title")),
+        // ),
+        body: ffPageList[ffSelectedIndex],
+        bottomNavigationBar: buildBottomBar(context),
       ),
     );
+  }
+
+  Widget buildBottomBar(BuildContext context) {
+    return BottomNavigationBar(
+      currentIndex: ffSelectedIndex,
+      onTap: changePage,
+      selectedItemColor: Colors.blue,
+      backgroundColor: Colors.grey[100],
+      type: BottomNavigationBarType.fixed,
+      //底部导航栏的创建需要对应的功能标签作为子项，这里我就写了3个，每个子项包含一个图标和一个title。
+      items: [
+        BottomNavigationBarItem(
+          label: ggText(context, "album"),
+          icon: const Icon(Icons.photo_album),
+        ),
+        BottomNavigationBarItem(
+          label: ggText(context, "servers"),
+          icon: const Icon(Icons.laptop_mac),
+        ),
+        BottomNavigationBarItem(
+          label: ggText(context, "task"),
+          icon: const Icon(Icons.library_books),
+        ),
+        BottomNavigationBarItem(
+          label: ggText(context, "setting"),
+          icon: const Icon(Icons.settings),
+        ),
+      ],
+    );
+  }
+
+  void changePage(int index) {
+    if (index != ffSelectedIndex) {
+      setState(() {
+        ffSelectedIndex = index;
+      });
+    }
   }
 }

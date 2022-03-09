@@ -9,4 +9,6 @@ import 'page_servers.dart';
 import 'page_setting.dart';
 import 'page_task.dart';
 
-void main() => runApp(const MyApp());
+void main() {
+  runApp(const MyApp());
+}

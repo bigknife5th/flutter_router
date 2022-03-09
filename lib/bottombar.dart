@@ -15,12 +15,16 @@ class BottomBar extends StatefulWidget {
 }
 
 class BottomBarState extends State<BottomBar> {
+  List listTabs = const [PageAblum(), PageServers(), PageTask(), PageSetting()];
+
   int _selectedIndex = 0;
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (index != _selectedIndex) {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
 
   @override
@@ -51,5 +55,32 @@ class BottomBarState extends State<BottomBar> {
         ),
       ],
     );
+  }
+}
+
+class BottomNavgationInfo {
+  int pageIndex = 0;
+  BottomNavgationInfo(this.pageIndex);
+}
+
+class BottomNavgationInfoContext extends InheritedWidget {
+  //数据
+  final BottomNavgationInfo bottomNavgationInfo;
+
+  const BottomNavgationInfoContext({
+    Key? key,
+    required this.bottomNavgationInfo,
+    required Widget child,
+  }) : super(key: key, child: child);
+
+  static BottomNavgationInfoContext? of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType(
+        aspect: BottomNavgationInfoContext);
+  }
+
+  //是否重建widget就取决于数据是否相同
+  @override
+  bool updateShouldNotify(BottomNavgationInfoContext oldWidget) {
+    return bottomNavgationInfo != oldWidget.bottomNavgationInfo;
   }
 }
