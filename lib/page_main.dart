@@ -8,6 +8,7 @@ import 'page_ablum.dart';
 import 'page_servers.dart';
 import 'page_setting.dart';
 import 'page_task.dart';
+import 'page_servers_modify.dart';
 
 class _AppSetting {
   late Null Function(Locale locale) changeLocale;
@@ -27,7 +28,7 @@ class MyAppState extends State<MyApp> {
   List<Widget> ffPageList = const [
     PageAblum(),
     PageServers(),
-    PageTask(),
+    PageServerModify(),
     PageSetting()
   ];
   int ffSelectedIndex = 0;
@@ -78,6 +79,9 @@ class MyAppState extends State<MyApp> {
       //以上都不用管，新系统代码或复制来的固定代码
 
       //自己代码开始
+      routes: {
+        "server_detail_page": (context) => const PageServerModify(),
+      },
       home: Scaffold(
         // appBar: AppBar(
         //   title: Text(ggText(context, "app_title")),
