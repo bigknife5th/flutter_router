@@ -50,6 +50,15 @@ class PageAblumState extends State<PageAblum> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("照片库"),
+        actions: [
+          IconButton(
+              onPressed: () {
+                FileManager.getStorageList().then((value) {
+                  getAlbumFolders();
+                });
+              },
+              icon: const Icon(Icons.cached))
+        ],
       ),
       body: //buildAlbumInFuture(context),
           buildByStream(context),
@@ -202,10 +211,10 @@ class PageAblumState extends State<PageAblum> {
         //await getSubFolderPath(entity);
         var subEntities =
             await Directory(entity.path).list(recursive: true).toList();
-        print(subEntities);
+        debugPrint(subEntities.toString());
       }
     }
-    print("返回了");
+    debugPrint("返回了");
     ffAlbumFolders.add(ffTasks);
     //ffRefreshSignal.value = !ffRefreshSignal.value;
   }

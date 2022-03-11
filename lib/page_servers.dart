@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_router/page_servers_modify.dart';
 import 'localization.dart';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
@@ -14,17 +16,32 @@ class PageServers extends StatefulWidget {
   }
 }
 
-class PageServersState extends State<PageServers> {
+class PageServersState extends State<PageServers>
+    with AutomaticKeepAliveClientMixin {
+  //
+
+  ValueNotifier<bool> ffNeedRefreshSwitch = ValueNotifier(false);
   ConfigServerList ffConfigServer = ConfigServerList();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
-    getServersFromJson();
+    getServersFromFile();
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     return Scaffold(
       appBar: AppBar(
         actions: <Widget>[
@@ -32,44 +49,34 @@ class PageServersState extends State<PageServers> {
               //刷新
               icon: const Icon(Icons.cached),
               onPressed: () {
-                setState(() {});
+                switchRefresh();
               }),
           //添加
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () async {
-              String cmd = 'add';
+              var modifyParam = ModifyParam(
+                  cmd: 'add',
+                  configServer: ConfigServer(ip: '', serverName: ''));
               var result = await Navigator.pushNamed(
                   context, "server_detail_page",
-                  arguments: cmd);
+                  arguments: modifyParam);
               //ffConfigServer.servers.add(result!);
               if (result != null) {
-                ffConfigServer.servers.add(result as ConfigServer);
+                serverAdd(result as ConfigServer);
               }
-              setState(() {});
+              //setState(() {});
             },
           ),
         ],
         title: Text(AppLocalizations.of(context).getString("server")),
       ),
-      body: Center(
-        child: buildServerListView(),
-      ),
-    );
-  }
-
-  FutureBuilder<bool> buildFutureBuilder() {
-    return FutureBuilder<bool>(
-      future: getServersFromJson(),
-      builder: (BuildContext context, AsyncSnapshot snapshot) {
-        if (snapshot.hasData) {
+      body: ValueListenableBuilder<bool>(
+        valueListenable: ffNeedRefreshSwitch,
+        builder: (context, value, _) {
           return buildServerListView();
-        } else if (snapshot.hasError) {
-          return const Icon(Icons.error_outline);
-        } else {
-          return const CircularProgressIndicator();
-        }
-      },
+        },
+      ),
     );
   }
 
@@ -93,7 +100,7 @@ class PageServersState extends State<PageServers> {
           ffConfigServer.servers[index].ip,
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
-        trailing: _serverPopupMenuButton(index),
+        trailing: _serverPopupMenuButton(context, index),
       ),
     );
   }
@@ -120,32 +127,37 @@ class PageServersState extends State<PageServers> {
             ],
           ),
           const Expanded(child: SizedBox()),
-          _serverPopupMenuButton(index),
+          _serverPopupMenuButton(context, index),
           const SizedBox(width: 6),
         ],
       ),
     );
   }
 
-  PopupMenuButton<String> _serverPopupMenuButton(int index) {
+  //弹出菜单
+  PopupMenuButton<String> _serverPopupMenuButton(
+      BuildContext context, int index) {
     return PopupMenuButton(
       icon: const Icon(Icons.more_vert),
       onSelected: (String v) async {
         //点击删除按钮
         if (v == "delete") {
-          ffConfigServer.servers.removeAt(index);
-          print("delete: $index");
-          setState(() {});
+          serverRemoveAt(index);
+          debugPrint("删除: $index");
+          //setState(() {});
         }
 
         //点击修改按钮
         if (v == "edit") {
+          //创建一个路由参数，传递是add还是edit，edit的话还要附带一个ConfigServer类
+          var modifyParam = ModifyParam(
+              cmd: 'edit', configServer: ffConfigServer.servers[index]);
           var result = await Navigator.pushNamed(context, 'server_detail_page',
-              arguments: ffConfigServer.servers[index]);
+              arguments: modifyParam);
           if (result != null) {
-            ffConfigServer.servers[index] = result as ConfigServer;
+            serverModifyAt(index, result as ConfigServer);
           }
-          setState(() {});
+          //setState(() {});
         }
       },
       itemBuilder: (BuildContext context) {
@@ -171,15 +183,15 @@ class PageServersState extends State<PageServers> {
     return Column(
       children: [
         ElevatedButton(
-          onPressed: getServersFromJson,
+          onPressed: getServersFromFile,
           child: const Text("读取json文件"),
         ),
         ElevatedButton(
-          onPressed: addServer,
+          onPressed: () {},
           child: const Text("添加server"),
         ),
         ElevatedButton(
-          onPressed: saveServerConfigToJson,
+          onPressed: saveServerConfigToFile,
           child: const Text("保存到文件"),
         ),
       ],
@@ -192,26 +204,42 @@ class PageServersState extends State<PageServers> {
     return '${directory!.path}/config/servers.json';
   }
 
-  Future<bool> getServersFromJson() async {
+  Future<bool> getServersFromFile() async {
     try {
       String configFilePath = await getConfigFilePath();
       final File file = File(configFilePath);
       String serverConfig = await file.readAsString();
       ffConfigServer = ConfigServerList.fromJson(json.decode(serverConfig));
       //print(ffConfigServer.toJson());
+      switchRefresh();
       return true;
     } catch (e) {
       return false;
     }
   }
 
-  addServer() {
-    ConfigServer server =
-        ConfigServer(ip: '192.168.0.139', serverName: 'cat', port: 9521);
+  serverAdd(ConfigServer server) {
     ffConfigServer.servers.add(server);
+    ffConfigServer.count = ffConfigServer.servers.length;
+    saveServerConfigToFile();
+    switchRefresh();
   }
 
-  saveServerConfigToJson() async {
+  serverRemoveAt(int index) {
+    ffConfigServer.servers.removeAt(index);
+    ffConfigServer.count = ffConfigServer.servers.length;
+    saveServerConfigToFile();
+    switchRefresh();
+  }
+
+  serverModifyAt(int index, ConfigServer server) {
+    ffConfigServer.servers[index] = server;
+    ffConfigServer.count = ffConfigServer.servers.length;
+    saveServerConfigToFile();
+    switchRefresh();
+  }
+
+  saveServerConfigToFile() async {
     //json count字段
     ffConfigServer.count = ffConfigServer.servers.length;
     //class -> json
@@ -221,7 +249,11 @@ class PageServersState extends State<PageServers> {
     //保存到文件
     File file = File(configFilePath);
     file.writeAsString(js);
-    //print(js);
+    debugPrint('保存服务器信息');
+  }
+
+  switchRefresh() {
+    ffNeedRefreshSwitch.value = !ffNeedRefreshSwitch.value;
   }
 }
 
@@ -250,14 +282,9 @@ class ConfigServer {
   int port = 21;
   String user = 'anonymous';
   String pass = '';
-  bool bUtf8 = true;
+  bool useUTF8 = true;
 
-  ConfigServer({
-    sreverType,
-    port,
-    required this.ip,
-    required this.serverName,
-  });
+  ConfigServer({sreverType, serverName, ip, port, user, pass, bUtf8});
 
   ConfigServer.fromJson(Map<String, dynamic> json)
       : serverType = json['type'],
@@ -266,7 +293,7 @@ class ConfigServer {
         port = json['port'],
         user = json['user'],
         pass = json['pass'],
-        bUtf8 = json['useUTF8'];
+        useUTF8 = json['useUTF8'];
 
   Map<String, dynamic> toJson() => {
         'type': serverType,
@@ -275,6 +302,6 @@ class ConfigServer {
         'port': port,
         'user': user,
         'pass': pass,
-        'useUTF8': bUtf8,
+        'useUTF8': useUTF8,
       };
 }

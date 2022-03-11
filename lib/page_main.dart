@@ -25,6 +25,7 @@ class MyApp extends StatefulWidget {
 class MyAppState extends State<MyApp> {
   static _AppSetting setting = _AppSetting();
   late AppLocalizations ffLocal;
+  var ffPageController = PageController();
   List<Widget> ffPageList = const [
     PageAblum(),
     PageServers(),
@@ -86,7 +87,12 @@ class MyAppState extends State<MyApp> {
         // appBar: AppBar(
         //   title: Text(ggText(context, "app_title")),
         // ),
-        body: ffPageList[ffSelectedIndex],
+        body: PageView.builder(
+            controller: ffPageController,
+            physics: const NeverScrollableScrollPhysics(), //禁止页面左右滑动切换
+            itemBuilder: (context, index) {
+              return ffPageList[index];
+            }),
         bottomNavigationBar: buildBottomBar(context),
       ),
     );
@@ -125,6 +131,7 @@ class MyAppState extends State<MyApp> {
     if (index != ffSelectedIndex) {
       setState(() {
         ffSelectedIndex = index;
+        ffPageController.jumpToPage(index);
       });
     }
   }
