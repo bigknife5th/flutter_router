@@ -218,25 +218,25 @@ class PageServersState extends State<PageServers>
     }
   }
 
-  serverAdd(ConfigServer server) {
-    ffConfigServer.servers.add(server);
+  saveAndRefresh() {
     ffConfigServer.count = ffConfigServer.servers.length;
     saveServerConfigToFile();
     switchRefresh();
+  }
+
+  serverAdd(ConfigServer server) {
+    ffConfigServer.servers.add(server);
+    saveAndRefresh();
   }
 
   serverRemoveAt(int index) {
     ffConfigServer.servers.removeAt(index);
-    ffConfigServer.count = ffConfigServer.servers.length;
-    saveServerConfigToFile();
-    switchRefresh();
+    saveAndRefresh();
   }
 
   serverModifyAt(int index, ConfigServer server) {
     ffConfigServer.servers[index] = server;
-    ffConfigServer.count = ffConfigServer.servers.length;
-    saveServerConfigToFile();
-    switchRefresh();
+    saveAndRefresh();
   }
 
   saveServerConfigToFile() async {
