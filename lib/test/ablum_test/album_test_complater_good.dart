@@ -1,9 +1,11 @@
-// 测试相册页
+///
+/// 在刷新函数里，每添加一条path就设置一次ffNeedRefresh.value = !ffNeedRefresh.value;
+/// 通知ValueListenableBuilder刷新
 
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../tool_filemanager.dart';
+import '../../tool_filemanager.dart';
 
 main() {
   runApp(const MyApp());
