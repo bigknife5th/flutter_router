@@ -138,10 +138,10 @@ packages:
   ftpconnect:
     dependency: "direct main"
     description:
-      name: ftpconnect
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.0"
+      path: "../ftpConnect"
+      relative: true
+    source: path
+    version: "1.0.1"
   get:
     dependency: "direct main"
     description:

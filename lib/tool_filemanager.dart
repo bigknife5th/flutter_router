@@ -107,7 +107,7 @@ class FileManager extends StatefulWidget {
     //print(list);
   }
 
-  static String basename(dynamic entity, [bool showFileExtension = false]) {
+  static String basename(dynamic entity, [bool showFileExtension = true]) {
     if (entity is Directory) {
       return entity.path.split('/').last;
     } else if (entity is File) {

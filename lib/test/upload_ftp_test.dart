@@ -1,8 +1,13 @@
+///要修改  \ftpConnect\lib\src\ftpSocket.dart 函数readResponse()里的
+///         sResponse.writeln(Utf8Codec().decode(_socket!.read()!).trim());
+///         //sResponse.writeln(String.fromCharCodes(_socket!.read()!).trim());
+///
+///
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+//import 'package:ftpconnect/ftpconnect.dart';
 import 'package:ftpconnect/ftpconnect.dart';
-import "package:convert/convert.dart";
 
 void main() {
   runApp(const MyApp());
@@ -17,7 +22,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final FTPConnect ffFtpConnect = FTPConnect("192.168.0.139",
-      user: "shawn", pass: "Fasmot311", debug: true);
+      user: "bigknife", pass: "Abc123456", debug: true);
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +41,7 @@ class _MyAppState extends State<MyApp> {
             ElevatedButton(
               onPressed: () async {
                 print("test");
-                await test();
+                await test2();
               },
               child: const Text('test2'),
             ),
