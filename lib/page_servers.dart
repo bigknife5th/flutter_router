@@ -34,7 +34,6 @@ class PageServersState extends State<PageServers>
 
   @override
   void dispose() {
-    // TODO: implement dispose
     super.dispose();
   }
 
@@ -198,12 +197,23 @@ class PageServersState extends State<PageServers>
     );
   }
 
-  // 逻辑代码 UI无关
+  switchRefresh() {
+    ffNeedRefreshSwitch.value = !ffNeedRefreshSwitch.value;
+  }
+
+  /// 逻辑代码 UI无关 ///
+
+  ///
+  /// 获取config文件路径
+  ///
   Future<String> getConfigFilePath() async {
     final Directory? directory = await getExternalStorageDirectory();
     return '${directory!.path}/config/servers.json';
   }
 
+  ///
+  /// 从json读取server列表
+  ///
   Future<bool> getServersFromFile() async {
     try {
       String configFilePath = await getConfigFilePath();
@@ -250,10 +260,6 @@ class PageServersState extends State<PageServers>
     File file = File(configFilePath);
     file.writeAsString(js);
     debugPrint('保存服务器信息');
-  }
-
-  switchRefresh() {
-    ffNeedRefreshSwitch.value = !ffNeedRefreshSwitch.value;
   }
 }
 
@@ -303,5 +309,17 @@ class ConfigServer {
         'user': user,
         'pass': pass,
         'useUTF8': useUTF8,
+      };
+}
+
+class ConfigNeedBackupPaths {
+  List<String> paths = [];
+  ConfigNeedBackupPaths({paths});
+
+  ConfigNeedBackupPaths.fromJson(Map<String, dynamic> json)
+      : paths = (json['paths'] as List).map((m) => m as String).toList();
+
+  Map<String, dynamic> toJson() => {
+        'paths': paths,
       };
 }

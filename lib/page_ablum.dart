@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_router/localization.dart';
+import 'package:get/get.dart';
 //import 'file_manager.dart';
 import 'tool_filemanager.dart';
+import 'page_task.dart';
+import 'package:ftpconnect/ftpconnect.dart';
 
 class PageAblum extends StatefulWidget {
   const PageAblum({Key? key}) : super(key: key);
@@ -12,83 +16,49 @@ class PageAblum extends StatefulWidget {
 }
 
 class PageAblumState extends State<PageAblum> {
-  FileManagerController fileManagerControll = FileManagerController();
-  List<Directory> ffDirectories = [];
-  List<FileSystemEntity> ffEntities = [];
-  ValueNotifier<List<FileSystemEntity>> ffAlbumFolders =
-      ValueNotifier<List<FileSystemEntity>>([]);
+  //相册监听器
+  ValueNotifier<List<BackupTask>> ffAblumsNotify =
+      ValueNotifier<List<BackupTask>>([]);
 
-  final ffRootPath = '';
+  //相册监听器Stream
+  StreamController<List<BackupTask>> ffAlbumSteamController =
+      StreamController<List<BackupTask>>.broadcast();
 
   @override
   void initState() {
     super.initState();
+    getAlbumFolders();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
+        title: Text(ggText(context, "album")),
+        actions: [
+          IconButton(
               onPressed: () async {
-                await fileManagerControll.goToParentDirectory();
+                await getAlbumFolders();
               },
-            ),
-            const SizedBox(width: 10),
-            IconButton(
-              icon: const Icon(Icons.house),
-              onPressed: () async {
-                await fileManagerControll.goToHome();
-              },
-            ),
-            const SizedBox(width: 10),
-            Text(
-              ggText(context, "album"),
-            ),
-          ],
-        ),
+              icon: const Icon(Icons.cached))
+        ],
       ),
-      body:
-          //FileManager(FController: fileManagerControll,FBuilder: buildEntityView,),
-          buildAlbumInFuture(context),
-      floatingActionButton: FloatingActionButton(
-        tooltip: ggText(context, 'action_add_folder'),
-        onPressed: () {
-          FileManager.getStorageList().then((value) {
-            ffAlbumFolders.value.clear();
-            refreshAlbumFolders();
-          });
-        },
-        elevation: 7.0,
-        child: const Icon(Icons.add),
-      ),
+      //body: buildValueListenableBuilder(),
+      body: buildStreamBuilder(),
     );
   }
 
-  Widget buildAlbumInFuture(BuildContext context) {
-    return FutureBuilder<List<Directory>?>(
-      future: FileManager.getStorageList(),
-      builder: (BuildContext context, AsyncSnapshot snapStorage) {
-        if (snapStorage.connectionState == ConnectionState.done) {
-          if (snapStorage.hasData) {
-            return FutureBuilder<List<FileSystemEntity>?>(
-              future: FileManager.getEntitysList(snapStorage.data!.first.path),
-              builder: (BuildContext context, AsyncSnapshot snapEntities) {
-                if (snapEntities.hasData) {
-                  return widgetToBuild(); // <<== 这里干活
-                } else if (snapEntities.hasError) {
-                  return const Icon(Icons.error_outline);
-                } else {
-                  return const CircularProgressIndicator();
-                }
-              },
-            );
-          } else if (snapStorage.hasError) {
-            return const Icon(Icons.error);
-          }
+  StreamBuilder<List<BackupTask>> buildStreamBuilder() {
+    return StreamBuilder<List<BackupTask>>(
+      stream: ffAlbumSteamController.stream,
+      builder: (context, snapData) {
+        if (snapData.hasData) {
+          return buildListViewAlbums(snapData.data!);
+        }
+        if (snapData.hasError) {
+          return const Center(
+            child: Text('Error'),
+          );
         }
         return const Center(
           child: CircularProgressIndicator(),
@@ -97,85 +67,148 @@ class PageAblumState extends State<PageAblum> {
     );
   }
 
-  ValueListenableBuilder<List<FileSystemEntity>> widgetToBuild() {
-    return ValueListenableBuilder<List<FileSystemEntity>>(
-      valueListenable: ffAlbumFolders,
-      builder: (context, snapFolders, _) {
-        if (ffAlbumFolders.value.isNotEmpty) {
-          return Center(
-            child: ListView.builder(
-              itemCount: snapFolders.length,
-              itemBuilder: (BuildContext context, int index) {
-                FileSystemEntity entity = snapFolders[index];
-                return Card(
-                  child: ListTile(
-                    title: Text(FileManager.basename(entity)),
-                  ),
-                );
-              },
-            ),
-          );
-        } else {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
+  ValueListenableBuilder<List<BackupTask>> buildValueListenableBuilder() {
+    return ValueListenableBuilder<List<BackupTask>>(
+      valueListenable: ffAblumsNotify,
+      builder: (contex, snapData, _) {
+        return buildListViewAlbums(snapData);
       },
     );
   }
 
-  void refreshAlbumFolders() async {
-    ffAlbumFolders.value.clear();
-    if (ffDirectories.isEmpty) {
-      ffDirectories = await FileManager.getStorageList();
-    }
+  Widget buildListViewAlbums(List<BackupTask> tasks) {
+    return ListView.builder(
+      itemCount: tasks.length,
+      itemBuilder: (c, i) {
+        String displayName = tasks[i].path.split('/').sublist(4).join('/');
+        return CheckboxListTile(
+            title: Text(displayName),
+            value: tasks[i].isChecked,
+            onChanged: (value) {
+              setState(() {
+                tasks[i].isChecked = value!;
+              });
+            });
+      },
+    );
+  }
 
-    var entities = await FileManager.getEntitysList(ffDirectories.first.path);
+  Future<void> getAlbumFolders() async {
+    List<BackupTask> localTasks = [];
 
-    for (var entity in entities) {
-      if (equalsIgnoreCase(FileManager.basename(entity), 'dcim') ||
-          equalsIgnoreCase(FileManager.basename(entity), 'picture') ||
-          equalsIgnoreCase(FileManager.basename(entity), 'pictures')) {
-        var folders = await FileManager.getEntitysList(entity.path);
-        for (var f in folders) {
-          ffAlbumFolders.value.add(f);
+    Future<void> getSubFolderPath(FileSystemEntity entity) async {
+      if (entity is Directory && !FileManager.isHideFile(entity)) {
+        var task = BackupTask(path: entity.path);
+        ffAblumsNotify.value.add(task);
+        localTasks.add(task);
+        var subFolders = await FileManager.getEntitysList(entity.path);
+        for (final sub in subFolders) {
+          await getSubFolderPath(sub);
         }
       }
     }
-    print(ffAlbumFolders.value);
-  }
 
-  //基础视图
-  Widget buildEntityView(
-      BuildContext context, List<FileSystemEntity> entities) {
-    List<FileSystemEntity> albumEntities = [];
-    for (var entity in entities) {
-      if (equalsIgnoreCase(FileManager.basename(entity), 'dcim') ||
-          equalsIgnoreCase(FileManager.basename(entity), 'picture') ||
-          equalsIgnoreCase(FileManager.basename(entity), 'pictures')) {
-        albumEntities.add(entity);
+    //获取根目录
+    var storages = await FileManager.getStorageList();
+    if (storages.isEmpty) {
+      return;
+    }
+
+    //读取根目录的所有文件夹
+    var entities = await Directory(storages.first.path).list().toList();
+    if (entities.isEmpty) {
+      return;
+    }
+
+    //初始化动作
+
+    ffAblumsNotify.value.clear();
+
+    //
+    for (final entity in entities) {
+      var baseName = FileManager.basename(entity);
+      if (equalsIgnoreCase(baseName, 'dcim') ||
+          equalsIgnoreCase(baseName, 'picture') ||
+          equalsIgnoreCase(baseName, 'pictures') ||
+          equalsIgnoreCase(baseName, 'video') ||
+          equalsIgnoreCase(baseName, 'videos') ||
+          equalsIgnoreCase(baseName, 'gallery')) {
+        //递归获取
+        await getSubFolderPath(entity);
       }
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        //Listview
-        Expanded(
-          child: ListView.builder(
-            itemCount: albumEntities.length,
-            itemBuilder: (BuildContext context, int index) {
-              FileSystemEntity entity = albumEntities[index];
-              String baseName = FileManager.basename(entity);
-              return Card(
-                child: ListTile(
-                  title: Text(FileManager.basename(entity)),
-                  onTap: () => fileManagerControll.openDirectory(entity),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
+    ffAlbumSteamController.add(localTasks);
   }
 }
+
+///
+class BackupTaskController extends GetxController {
+  RxList<BackupTask> backupTasks = <BackupTask>[].obs;
+  final FTPConnect ffFtpConnect = FTPConnect("192.168.0.139",
+      user: "bigknife", pass: "Abc123456", debug: true);
+
+  add(BackupTask task) {
+    backupTasks.add(task);
+  }
+
+  Future<void> _uploadWithRetry(File fileToUpload, String remoteName) async {
+    try {
+      File fileToUpload = File(
+          "/sdcard/DCIM/NewFolder/Sifu Screenshot 2022.02.10 - 15.30.18.93.png");
+      print('Uploading ...');
+      await ffFtpConnect.connect();
+      await ffFtpConnect.socket.sendCommand("OPTS UTF8 ON");
+
+      //await ffFtpConnect.changeDirectory('downloads');
+      bool res = await ffFtpConnect.uploadFileWithRetry(fileToUpload,
+          pRetryCount: 2, pRemoteName: '/downloads/1.png');
+      print('file uploaded: ' + (res ? 'SUCCESSFULLY' : 'FAILED'));
+      await ffFtpConnect.disconnect();
+    } catch (e) {
+      print('Downloading FAILED: ${e.toString()}');
+    }
+  }
+
+  ///
+  /// 测试上传
+  ///
+  updateToServer(index) {
+    _updateToServer(task: backupTasks[index]);
+  }
+
+  _updateToServer({required BackupTask task}) async {
+    try {
+      task.getEntity();
+      await ffFtpConnect.connect();
+      await ffFtpConnect.socket.sendCommand("OPTS UTF8 ON");
+      await ffFtpConnect.changeDirectory('/downloads/my_ftp_app/');
+
+      for (var flle in task.files) {
+        var baseName = FileManager.basename(flle);
+        if (await ffFtpConnect.existFile(baseName)) {
+          debugPrint('远端文件已存在');
+          continue;
+        }
+        if (flle is File == false) {
+          debugPrint('不是File');
+          continue;
+        }
+        debugPrint('开始上传$baseName');
+        File fileToUpload = flle as File;
+        bool res = await ffFtpConnect
+            .uploadFileWithRetry(fileToUpload, pRetryCount: 2, onProgress:
+                (double progressInPercent, int totalReceived, int fileSize) {
+          debugPrint("$progressInPercent");
+        });
+        debugPrint('file uploaded: ' + (res ? 'SUCCESSFULLY' : 'FAILED'));
+      }
+      debugPrint('上传完毕');
+    } catch (e) {
+      debugPrint('Downloading FAILED: ${e.toString()}');
+    } finally {
+      await ffFtpConnect.disconnect();
+    }
+  }
+}
+
+class AlbumViewControll {}

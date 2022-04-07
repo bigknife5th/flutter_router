@@ -78,7 +78,9 @@ class FileManager extends StatefulWidget {
   @override
   _FileManagerState createState() => _FileManagerState();
 
-  // 工具
+  ///
+  /// 静态工具方法
+  ///
   static Future<List<Directory>> getStorageList() async {
     if (Platform.isAndroid) {
       List<Directory> storages = (await getExternalStorageDirectories())!;
@@ -123,8 +125,44 @@ class FileManager extends StatefulWidget {
   static bool isHideFile(dynamic entity) {
     return (entity.path.split('/').last.substring(0, 1) == '.');
   }
+
+  static String fileExt(String path) {
+    return path.split('/').last.split('.').last;
+  }
+
+  static bool isImage(String path) {
+    var ext = path.split('/').last.split('.').last.toLowerCase();
+    if (ext == 'png' ||
+        ext == 'jpg' ||
+        ext == 'gif' ||
+        ext == 'bmp' ||
+        ext == 'jepg' ||
+        ext == 'heic') {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  static bool isVideo(String path) {
+    var ext = path.split('/').last.split('.').last.toLowerCase();
+    if (ext == 'mp4' || ext == 'mov' || ext == 'avi' || ext == 'mkv') {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  static String splitStringWithIndex(String s, Pattern pattern, int index) {
+    List<String> list = s.split(pattern);
+    if (list.isNotEmpty) return '';
+    return list.sublist(3).join('/');
+  }
 }
 
+///
+/// 文件管理器的界面
+///
 class _FileManagerState extends State<FileManager> {
   // C
 
